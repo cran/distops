@@ -1,0 +1,116 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# distops
+
+<!-- badges: start -->
+
+[![R-CMD-check](https://github.com/LMJL-Alea/distops/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/LMJL-Alea/distops/actions/workflows/R-CMD-check.yaml)
+[![Codecov test
+coverage](https://codecov.io/gh/LMJL-Alea/distops/branch/master/graph/badge.svg)](https://app.codecov.io/gh/LMJL-Alea/distops?branch=master)
+[![pkgdown](https://github.com/LMJL-Alea/distops/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/LMJL-Alea/distops/actions/workflows/pkgdown.yaml)
+[![test-coverage](https://github.com/LMJL-Alea/distops/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/LMJL-Alea/distops/actions/workflows/test-coverage.yaml)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/distops)](https://CRAN.R-project.org/package=distops)
+<!-- badges: end -->
+
+The goal of **distops** is to provide a set of functions to compute
+distances between observations in a sample and to perform operations on
+distance matrices.
+
+## Installation
+
+You can install the development version of distops from
+[GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("LMJL-Alea/distops")
+```
+
+## Features
+
+``` r
+library(distops)
+```
+
+### Package developement
+
+We provide two functions for package developers to help with defining
+efficient implementation of the `dist` functions for custom distances.
+Namely:
+
+- `use_distops()` setups a package to use **distops** for computing
+  distances. In particular, it creates a `src/` directory with a
+  `Makevars` file and a `Makevars.win` file. It also creates a
+  `R/distops-package.R` file with the appropriate **roxygen2** tags so
+  that the `NAMESPACE` file is modified to add the `importFrom()`
+  directives for the Rcpp and RcppParallel packages and the
+  `useDynLib()` directive for packages with compiled code. It finally
+  modifies the `DESCRIPTION` file to add **Rcpp**, **RcppParallel** and
+  **distops** to the `Imports` and `LinkingTo` fields and GNU make to
+  the `SystemRequirements` field.
+- `use_distance()` creates R and C++ files for easy implementation of
+  custom distances.
+
+### Subset operator
+
+Let us compute the Euclidean distance matrix for the `iris` dataset:
+
+``` r
+D <- dist(iris[, 1:4], method = "euclidean")
+```
+
+We can subset this matrix using the `[` operator. We can either provide
+the same indices for rows and columns in which case it return another
+object of class `dist`:
+
+``` r
+D[1:3, 1:3]
+#>           1         2
+#> 2 0.5385165          
+#> 3 0.5099020 0.3000000
+```
+
+Or we can provide different indices for rows and columns in which case
+it returns a dense matrix:
+
+``` r
+D[2:3, 7:12]
+#>           7         8         9        10        11        12
+#> 2 0.5099020 0.4242641 0.5099020 0.1732051 0.8660254 0.4582576
+#> 3 0.2645751 0.4123106 0.4358899 0.3162278 0.8831761 0.3741657
+```
+
+The subsetting operation is fully parallelized using the
+**RcppParallel** package. It is also memory efficient as it does not
+copy the original distance matrix.
+
+### Medoid computation
+
+The medoid of a sample is the observation that minimizes the sum of
+distances to all other observations. The `find_medoids()` function
+computes the medoid of a sample for a given distance. It takes advantage
+of the **RcppParallel** package to compute the medoid in parallel.
+
+``` r
+find_medoids(D)
+#> [1] 62
+```
+
+If the `memberships` argument is provided, it returns the medoid for
+each cluster.
+
+``` r
+find_medoids(D, memberships = as.factor(rep(1:3, each = 50L)))
+#>   1   2   3 
+#>   8  97 113
+```
+
+## Future work
+
+- Pass a list instead of a matrix to be more general?
+- Use Arrow parquet format to store distance matrix in multiple files
+  when sample size exceeds 10,000 or something like that.
+- Use Arrow connection to read in large data.
+- Add Progress bar.
